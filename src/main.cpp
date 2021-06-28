@@ -30,25 +30,10 @@ DeviceAddress sensorAddress;
 // SSD 1306 0.9 128x32 OLED
 Adafruit_SSD1306 oled(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// function to print the temperature for a device
-// void printTemperature(DeviceAddress deviceAddress)
-// {
-//   float tempC = sensor.getTempC(deviceAddress);
-//   if (tempC == DEVICE_DISCONNECTED_C)
-//   {
-//     Serial.println("Error: Could not read temperature data");
-//     return;
-//   }
-//   Serial.print("Temp C: ");
-//   Serial.print(tempC);
-//   Serial.print(" Temp F: ");
-//   Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
-// }
-
 // Define logic parameters
 const unsigned long requestIntervalInMs = 1L * 60L * 1000L;
-const float minTemperature = -18.00F;
-const float maxTemperature = -15.00F;
+const float minTemperature = -20.00F;
+const float maxTemperature = -18.00F;
 
 unsigned long lastRequestTimeInMs = 0L;
 boolean fridgeIsOn = false;
@@ -106,9 +91,6 @@ void initializeSensor(void)
   sensor.begin();
 
   // Scroll away from startup garbage
-  DEBUG_EMPTY_ROW
-  DEBUG_EMPTY_ROW
-
   DEBUG_PRINTLN_KEY_VALUE(F("Number of devices"), sensor.getDeviceCount())
 
   if (!sensor.getAddress(sensorAddress, 0))
@@ -134,31 +116,53 @@ void initializeDisplay(void)
   // clear oled
   oled.clearDisplay();
   oled.display();
+
+  oled.setTextSize(2); // Draw 2X-scale text
+  oled.setTextColor(SSD1306_WHITE);
+  oled.setCursor(0, 0);
+
+  oled.printf("Starting\n%d %d", (int)maxTemperature, (int)minTemperature);
+ 
+  oled.display();
 }
 
-void showStatus(float currentTemperature, boolean relayIsOn) {
+void showStatus(float currentTemperature, boolean relayIsOn)
+{
   DEBUG_PRINTLN_KEY_VALUE(F("Current temperature"), sensor.getTempC(sensorAddress))
-  DEBUG_PRINTLN_KEY_VALUE(F("Relay is on"), relayIsOn)
+  DEBUG_PRINTLN_KEY_VALUE(F("Relay is "), relayIsOn ? "on" : "off")
 
   oled.clearDisplay();
 
   oled.setTextSize(2); // Draw 2X-scale text
   oled.setTextColor(SSD1306_WHITE);
-  oled.setCursor(10, 0);
-  oled.printf("%d.%02d %s", (int)currentTemperature, (int)(currentTemperature * 100) % 100, relayIsOn ? "an" : "aus" );
+  oled.setCursor(0, 0);
 
-  oled.display();      // Show initial text
+  if (currentTemperature >= 0)
+  {
+    oled.printf("%d.%02d\n%s", (int)currentTemperature, (int)(currentTemperature * 100) % 100, relayIsOn ? "an" : "aus");
+  }
+  else
+  {
+    currentTemperature = currentTemperature * -1;
+    oled.printf("-%d.%02d\n%s", (int)currentTemperature, (int)(currentTemperature * 100) % 100, relayIsOn ? "an" : "aus");
+  }
+  
+  oled.display(); // Show initial text
 }
 
 void setup(void)
 {
   // Initialize debug port
   DEBUG_BEGIN(115200)
+  DEBUG_EMPTY_ROW
+  DEBUG_EMPTY_ROW
+
+  delay(1000);
 
   // Initialize relay
   pinMode(SSR_PIN, OUTPUT);
-  switchRelayOff(SSR_PIN);
-  
+  delay(1000);
+  switchRelayOn(SSR_PIN);
 
   // Initialize oled
   initializeDisplay();
